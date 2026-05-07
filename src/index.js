@@ -165,9 +165,9 @@ function generateViewerPage(record) {
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>二维码查看</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea,#764ba2);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}.card{background:white;border-radius:20px;padding:48px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:420px;width:90%}h1{color:#333;margin-bottom:8px;font-size:22px}.subtitle{color:#888;font-size:14px;margin-bottom:32px}.qrcode-wrapper{background:#f8f9fa;border-radius:16px;padding:24px;margin-bottom:24px}.qrcode-wrapper img{max-width:280px;width:100%;border-radius:8px}.info{color:#aaa;font-size:13px}</style></head>
-<body><div class="card"><h1>📱 二维码</h1><p class="subtitle">扫描或长按保存</p><div class="qrcode-wrapper"><img src="${record.imagePath}" alt="QR Code"/></div><p class="info">来源: ${record.originalName}</p></div></body></html>`
+<title>查看</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea,#764ba2);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}.card{background:white;border-radius:20px;padding:48px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:420px;width:90%}.qrcode-wrapper{background:#f8f9fa;border-radius:16px;padding:24px;margin-bottom:24px}.qrcode-wrapper img{max-width:280px;width:100%;border-radius:8px}</style></head>
+<body><div class="card"><div class="qrcode-wrapper"><img src="${record.imagePath}" alt="QR Code"/></div></div></body></html>`
 }
 
 app.listen(PORT, () => {
