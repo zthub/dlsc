@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>短链管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:24px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.header h1{color:#fff;font-size:24px}
+.btn{padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;color:white;background:rgba(255,255,255,.2);transition:.2s}
+.btn:hover{background:rgba(255,255,255,.35);transform:translateY(-1px)}
+.btn-primary{background:#fff;color:#667eea}.btn-primary:hover{background:#f0eeff}
+.btn-danger{background:#ff4757}.btn-danger:hover{background:#ff6b81}
+.btn-sm{padding:6px 14px;font-size:12px}
+.container{max-width:900px;margin:0 auto}
+.list{display:flex;flex-direction:column;gap:12px}
+.card{background:white;border-radius:12px;padding:20px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);transition:.2s}
+.card:hover{box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.card-icon{font-size:36px;flex-shrink:0;width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:#f0f0f5;border-radius:12px}
+.card-body{flex:1;min-width:0}
+.card-title{font-size:15px;font-weight:600;color:#333;margin-bottom:4px;word-break:break-all}
+.card-sub{font-size:13px;color:#888}
+.card-meta{font-size:12px;color:#aaa;margin-top:4px}
+.card-actions{display:flex;gap:6px;flex-shrink:0}
+.short-url{color:#667eea;font-weight:500;cursor:pointer;text-decoration:none}
+.short-url:hover{text-decoration:underline}
+.empty{text-align:center;color:rgba(255,255,255,.7);padding:60px 20px;font-size:18px}
+
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:white;border-radius:16px;padding:32px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+.modal h2{margin-bottom:20px;font-size:20px}
+.modal .tabs{display:flex;gap:6px;margin-bottom:20px;background:#f0f0f5;border-radius:10px;padding:4px}
+.modal .tab{flex:1;padding:8px;text-align:center;border-radius:8px;cursor:pointer;font-weight:500;font-size:13px;color:#666;border:none;background:transparent;transition:.2s}
+.modal .tab.active{background:white;color:#667eea;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.panel{display:none}.panel.active{display:block}
+.input-group{margin-bottom:16px}
+.input-group label{display:block;margin-bottom:6px;color:#555;font-weight:500;font-size:14px}
+.input-group input[type=text],.input-group input[type=url]{width:100%;padding:10px 14px;border:2px solid #e1e5e9;border-radius:8px;font-size:14px;transition:.2s}
+.input-group input:focus{outline:none;border-color:#667eea}
+.upload-zone{border:2px dashed #ccc;border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:.2s;background:#fafafa}
+.upload-zone:hover,.upload-zone.dragover{border-color:#667eea;background:#f0eeff}
+.upload-zone.has-file{border-color:#28a745;background:#f0fff4}
+.upload-icon{font-size:40px;margin-bottom:8px}
+.file-preview{margin-top:12px;display:none}
+.file-preview.show{display:block}
+.file-preview img{max-width:160px;max-height:160px;border-radius:8px}
+.file-name{margin-top:6px;color:#555;font-size:12px;word-break:break-all}
+input[type=file]{display:none}
+.qr-thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid #eee}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-qr{background:#e8f5e9;color:#2e7d32}
+.badge-url{background:#e3f2fd;color:#1565c0}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🔗 短链管理</h1>
+    <button class="btn btn-primary" onclick="openAddModal()">+ 新建短链</button>
+  </div>
+  <div id="list" class="list"></div>
+  <div id="empty" class="empty" style="display:none">暂无记录，点击右上角新建</div>
+</div>
+
+<div id="addModal" class="modal-overlay" onclick="if(event.target===this)closeModal('addModal')">
+<div class="modal">
+<h2>新建短链</h2>
+<div class="tabs">
+  <button class="tab active" data-tab="qr">📷 上传二维码</button>
+  <button class="tab" data-tab="url">🔗 输入URL</button>
+</div>
+<div id="panelQr" class="panel active">
+  <div class="upload-zone" id="addUploadZone">
+    <div class="upload-icon">📷</div>
+    <p style="color:#888;font-size:14px"><strong>点击或拖拽</strong> 上传二维码图片</p>
+    <input type="file" id="addFileInput" accept="image/*" />
+  </div>
+  <div class="file-preview" id="addFilePreview">
+    <img id="addPreviewImg"/>
+    <p class="file-name" id="addFileName"></p>
+  </div>
+  <button class="btn btn-primary" style="width:100%;margin-top:16px" id="addQrBtn" disabled onclick="doAddQr()">生成短链</button>
+</div>
+<div id="panelUrl" class="panel">
+  <div class="input-group">
+    <label>输入原始链接</label>
+    <input type="url" id="addUrlInput" placeholder="https://example.com"/>
+  </div>
+  <button class="btn btn-primary" style="width:100%" onclick="doAddUrl()">生成短链 + 二维码</button>
+</div>
+</div></div>
+
+<div id="editModal" class="modal-overlay" onclick="if(event.target===this)closeModal('editModal')">
+<div class="modal">
+<h2>编辑短链</h2>
+<div id="editInfo" style="margin-bottom:16px"></div>
+<div id="editSectionQr" style="display:none">
+  <p style="color:#666;font-size:14px;margin-bottom:12px">当前二维码：</p>
+  <div style="text-align:center;margin-bottom:16px">
+    <img id="editCurrentImg" style="max-width:200px;border-radius:8px"/>
+  </div>
+  <p style="color:#666;font-size:14px;margin-bottom:12px">更换为新二维码：</p>
+  <div class="upload-zone" id="editUploadZone" style="padding:20px">
+    <div class="upload-icon" style="font-size:28px">📷</div>
+    <p style="color:#888;font-size:13px"><strong>点击选择新图片</strong></p>
+    <input type="file" id="editFileInput" accept="image/*"/>
+  </div>
+  <div class="file-preview" id="editFilePreview">
+    <img id="editPreviewImg" style="max-width:120px"/>
+    <p class="file-name" id="editFileName"></p>
+  </div>
+  <button class="btn btn-primary" style="width:100%;margin-top:12px" id="editQrBtn" disabled onclick="doEditQr()">确认更换二维码</button>
+</div>
+<div id="editSectionUrl" style="display:none">
+  <div class="input-group">
+    <label>目标URL</label>
+    <input type="url" id="editUrlInput"/>
+  </div>
+  <button class="btn btn-primary" style="width:100%" onclick="doEditUrl()">更新目标URL</button>
+  <div id="editQrcodeArea" style="margin-top:16px;display:none">
+    <p style="color:#666;font-size:14px;margin-bottom:8px">生成的二维码：</p>
+    <div style="text-align:center">
+      <img id="editGenQrImg" style="max-width:200px;border-radius:8px"/>
+    </div>
+  </div>
+</div>
+</div></div>
+
+<script>
+var listData = [];
+var addSelectedFile = null;
+var editCode = null;
+var editSelectedFile = null;
+
+function loadList() {
+  fetch('/api/list').then(function(r){return r.json()}).then(function(d){
+    listData = d;
+    renderList();
+  });
+}
+
+function renderList() {
+  var el = document.getElementById('list');
+  var empty = document.getElementById('empty');
+  if (!listData || !listData.length) {
+    el.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  var html = '';
+  for (var i = 0; i < listData.length; i++) {
+    var item = listData[i];
+    var isQr = item.type === 'qrcode_image';
+    var badge = isQr ? '<span class="badge badge-qr">二维码</span>' : '<span class="badge badge-url">链接</span>';
+    var thumb = isQr ? '<img class="qr-thumb" src="' + item.imagePath + '" alt="QR"/>' : '';
+    var target = isQr ? escapeHtml(item.originalName) : '<a href="' + escapeHtml(item.originalUrl) + '" target="_blank" style="color:#667eea;word-break:break-all">' + escapeHtml(item.originalUrl) + '</a>';
+    var meta = '创建: ' + fmtTime(item.createdAt) + ' · 访问: ' + (item.clickCount || 0) + '次';
+    if (item.updatedAt) {
+      meta += ' · 更新: ' + fmtTime(item.updatedAt);
+    }
+    html += '<div class="card">';
+    html += '  <div class="card-icon">' + (isQr ? '📷' : '🔗') + '</div>';
+    html += thumb;
+    html += '  <div class="card-body">';
+    html += '    <div class="card-title">' + badge + ' <a class="short-url" href="/' + item.code + '" target="_blank">' + escapeHtml(item.shortUrl) + '</a></div>';
+    html += '    <div class="card-sub">' + target + '</div>';
+    html += '    <div class="card-meta">' + meta + '</div>';
+    html += '  </div>';
+    html += '  <div class="card-actions">';
+    html += '    <button class="btn btn-sm" onclick="openEditModal(\'' + item.code + '\')">✏️ 编辑</button>';
+    html += '    <button class="btn btn-sm btn-danger" onclick="doDelete(\'' + item.code + '\')">🗑️ 删除</button>';
+    html += '  </div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmtTime(s) {
+  if (!s) return '';
+  var d = new Date(s);
+  return (d.getMonth()+1) + '/' + d.getDate() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function pad(n) { return n < 10 ? '0'+n : ''+n; }
+
+function openAddModal() {
+  document.getElementById('addModal').classList.add('show');
+  resetAddForm();
+}
+
+function openEditModal(code) {
+  editCode = code;
+  var item = null;
+  for (var i = 0; i < listData.length; i++) {
+    if (listData[i].code === code) { item = listData[i]; break; }
+  }
+  if (!item) return;
+  document.getElementById('editModal').classList.add('show');
+  document.getElementById('editInfo').innerHTML = '<p style="color:#888;font-size:14px">短链: <strong>' + escapeHtml(item.shortUrl) + '</strong></p>';
+
+  var secQr = document.getElementById('editSectionQr');
+  var secUrl = document.getElementById('editSectionUrl');
+  if (item.type === 'qrcode_image') {
+    secQr.style.display = 'block';
+    secUrl.style.display = 'none';
+    document.getElementById('editCurrentImg').src = item.imagePath;
+  } else {
+    secQr.style.display = 'none';
+    secUrl.style.display = 'block';
+    document.getElementById('editUrlInput').value = item.originalUrl;
+    loadEditQr(code);
+  }
+  resetEditForm();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function switchAddTab(tab) {
+  var tabs = document.querySelectorAll('#addModal .tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === tab);
+  }
+  document.getElementById('panelQr').style.display = (tab === 'qr' ? 'block' : 'none');
+  document.getElementById('panelUrl').style.display = (tab === 'url' ? 'block' : 'none');
+}
+
+document.querySelectorAll('#addModal .tab').forEach(function(t){
+  t.addEventListener('click', function(){ switchAddTab(t.getAttribute('data-tab')); });
+});
+
+function resetAddForm() {
+  addSelectedFile = null;
+  document.getElementById('addFilePreview').classList.remove('show');
+  document.getElementById('addUploadZone').classList.remove('has-file');
+  document.getElementById('addQrBtn').disabled = true;
+  document.getElementById('addUrlInput').value = '';
+}
+function resetEditForm() {
+  editSelectedFile = null;
+  document.getElementById('editFilePreview').classList.remove('show');
+  document.getElementById('editUploadZone').classList.remove('has-file');
+  document.getElementById('editQrBtn').disabled = true;
+}
+
+// Add QR upload
+var addFileInput = document.getElementById('addFileInput');
+var addUploadZone = document.getElementById('addUploadZone');
+addFileInput.addEventListener('change', function(e){ handleAddFile(e.target.files[0]); });
+addUploadZone.addEventListener('dragover', function(e){ e.preventDefault(); addUploadZone.classList.add('dragover'); });
+addUploadZone.addEventListener('dragleave', function(){ addUploadZone.classList.remove('dragover'); });
+addUploadZone.addEventListener('drop', function(e){
+  e.preventDefault(); addUploadZone.classList.remove('dragover');
+  var f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) handleAddFile(f);
+});
+addUploadZone.addEventListener('click', function(){ addFileInput.click(); });
+
+function handleAddFile(file) {
+  if (!file) return;
+  addSelectedFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('addPreviewImg').src = e.target.result;
+    document.getElementById('addFileName').textContent = file.name;
+    document.getElementById('addFilePreview').classList.add('show');
+    addUploadZone.classList.add('has-file');
+    document.getElementById('addQrBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Edit QR upload
+var editFileInput = document.getElementById('editFileInput');
+var editUploadZone = document.getElementById('editUploadZone');
+editFileInput.addEventListener('change', function(e){ handleEditFile(e.target.files[0]); });
+editUploadZone.addEventListener('dragover', function(e){ e.preventDefault(); editUploadZone.classList.add('dragover'); });
+editUploadZone.addEventListener('dragleave', function(){ editUploadZone.classList.remove('dragover'); });
+editUploadZone.addEventListener('drop', function(e){
+  e.preventDefault(); editUploadZone.classList.remove('dragover');
+  var f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) handleEditFile(f);
+});
+editUploadZone.addEventListener('click', function(){ editFileInput.click(); });
+
+function handleEditFile(file) {
+  if (!file) return;
+  editSelectedFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('editPreviewImg').src = e.target.result;
+    document.getElementById('editFileName').textContent = file.name;
+    document.getElementById('editFilePreview').classList.add('show');
+    editUploadZone.classList.add('has-file');
+    document.getElementById('editQrBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function doAddQr() {
+  if (!addSelectedFile) return;
+  var fd = new FormData();
+  fd.append('qrcode', addSelectedFile);
+  fetch('/api/upload-qrcode', {method:'POST', body:fd}).then(function(r){ return r.json(); }).then(function(data){
+    closeModal('addModal');
+    loadList();
+  }).catch(function(){ alert('上传失败'); });
+}
+
+function doAddUrl() {
+  var url = document.getElementById('addUrlInput').value.trim();
+  if (!url) { alert('请输入URL'); return; }
+  fetch('/api/shorten', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url:url})}).then(function(r){ return r.json(); }).then(function(data){
+    closeModal('addModal');
+    loadList();
+  }).catch(function(){ alert('失败'); });
+}
+
+function doEditQr() {
+  if (!editCode || !editSelectedFile) return;
+  var fd = new FormData();
+  fd.append('qrcode', editSelectedFile);
+  fetch('/api/update-qrcode/' + editCode, {method:'PUT', body:fd}).then(function(r){ return r.json(); }).then(function(data){
+    closeModal('editModal');
+    loadList();
+  }).catch(function(){ alert('更新失败'); });
+}
+
+function doEditUrl() {
+  if (!editCode) return;
+  var url = document.getElementById('editUrlInput').value.trim();
+  if (!url) { alert('请输入URL'); return; }
+  fetch('/api/' + editCode, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url:url})}).then(function(r){ return r.json(); }).then(function(data){
+    loadEditQr(editCode);
+    loadList();
+  }).catch(function(){ alert('更新失败'); });
+}
+
+function loadEditQr(code) {
+  fetch('/api/qrcode/' + code).then(function(r){ return r.json(); }).then(function(d){
+    document.getElementById('editGenQrImg').src = d.qrcode;
+    document.getElementById('editQrcodeArea').style.display = 'block';
+  }).catch(function(){});
+}
+
+function doDelete(code) {
+  if (!confirm('确定要删除这条短链吗？')) return;
+  fetch('/api/' + code, {method:'DELETE'}).then(function(r){ return r.json(); }).then(function(){
+    loadList();
+  }).catch(function(){ alert('删除失败'); });
+}
+
+loadList();
+</script>
+</body>
+</html>
