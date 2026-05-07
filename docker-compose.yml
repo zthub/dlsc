@@ -1,0 +1,11 @@
+services:
+  dlsc:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    environment:
+      - PORT=3000
+    restart: unless-stopped
